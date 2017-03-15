@@ -9,15 +9,15 @@
 ########################################################################################
 # 0. BRIEF DESCRIPTION
 ########################################################################################
-# https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip
+# This is the final assignment for the Coursera "Getting and Cleaning Data" course by
+# Johns Hopkin University. 
 # 
-# You should create one R script called run_analysis.R that does the following.
-# 
-# Merges the training and the test sets to create one data set.
-# Extracts only the measurements on the mean and standard deviation for each measurement.
-# Uses descriptive activity names to name the activities in the data set
-# Appropriately labels the data set with descriptive variable names.
-# From the data set in step 4, creates a second, independent tidy data set with the average of each variable for each activity and each subject.
+# This file aims to complete the following 5 criteria of the assignment:
+# 1. Merges the training and the test sets to create one data set.
+# 2. Extracts only the measurements on the mean and standard deviation for each measurement.
+# 3. Uses descriptive activity names to name the activities in the data set
+# 4. Appropriately labels the data set with descriptive variable names.
+# 5. From the data set in step 4, creates a second, independent tidy data set with the average of each variable for each activity and each subject.
 
 
 ########################################################################################
@@ -28,7 +28,7 @@ rm(list=ls())
 sessionInfo()
 
 # Move to the 'datadir' folder 
-datadir <- "/Users/vincent/VP_GitLibrary/datasciencecoursera"
+datadir <- "/P/Temp/"
 setwd(datadir)
 
 
@@ -46,59 +46,61 @@ dir("./UCI HAR Dataset/train")
 
 
 ########################################################################################
-# 1. CLEAR ENVIRONMENT, REQUIRE PACKAGES NEEDED
+# 2. LOAD AND TIDY DATA
 ########################################################################################
-
-
 #### Step 1.Merge the training and the test sets to create one data set
-rawtraindata <- read.table("./UCI HAR Dataset/train/subject_train.txt")
-dim(rawtraindata)
-rawtestdata <- read.table("./UCI HAR Dataset/test/subject_test.txt")
-dim(rawtestdata)
-rawdata <- rbind(rawtraindata,rawtestdata)
-dim(rawdata)
-
-extractdata$psuedo_id <- seq.int(nrow(extractdata))
-
+subtraindata <- read.table("./UCI HAR Dataset/train/subject_train.txt")
+labtraindata <- read.table("./UCI HAR Dataset/train/y_train.txt")
 rawtraindata <- read.table("./UCI HAR Dataset/train/X_train.txt")
-dim(rawtraindata)
-rawtestdata <- read.table("./UCI HAR Dataset/test/X_test.txt")
-dim(rawtestdata)
-rawdata <- rbind(rawtraindata,rawtestdata)
-dim(rawdata)
+traindata <- cbind(subtraindata,labtraindata,rawtraindata)
+head(traindata)[1:6]
 
+subtestdata <- read.table("./UCI HAR Dataset/test/subject_test.txt")
+labtestdata <- read.table("./UCI HAR Dataset/test/y_test.txt")
+rawtestdata <- read.table("./UCI HAR Dataset/test/X_test.txt")
+testdata <- cbind(subtestdata,labtestdata,rawtestdata)
+head(testdata)[1:6]
+
+rawdata <- rbind(traindata,testdata)
+colnames(rawdata)[1:2] <- c("subject_id", "activity_id")
+head(rawdata)[1:6]
+dim(rawdata)
 
 #### Step 2. Extract only the measurements on the mean and standard deviation for each measurement
-rawdatanames <- read.table("./UCI HAR Dataset/features.txt")
-extractcol <- grep("mean()|std()", rawdatanames[,2])
-extractdata <- rawdata[,extractcol]
-dim(extractdata)
+varnames <- read.table("./UCI HAR Dataset/features.txt")
+extractcol <- grep("mean[(][)]|std()", varnames[,2])
+extractdata <- rawdata[,append(extractcol+2, 1:2, after = 0)]
+head(extractdata)[1:6]
 
 
 #### Step 3. Use descriptive activity names to name the activities in the data set
-acttrainlabeldata <- read.table("./UCI HAR Dataset/train/y_train.txt")
-dim(acttrainlabeldata)
-acttestlabeldata <- read.table("./UCI HAR Dataset/test/y_test.txt")
-dim(acttestlabeldata)
-actlabeldata <- rbind(acttrainlabeldata,acttestlabeldata)
-dim(actlabeldata)
-colnames(actlabeldata) <- "activity_id"
-
-extractdata <- cbind(extractdata, actlabeldata)
-dim(extractdata)
 activitylabels <- read.table("./UCI HAR Dataset/activity_labels.txt")
-colnames(activitylabels) <- c("activity_id", "activity_label")
+colnames(activitylabels) <-  c("activity_id", "activity_label")
 
-extractdata = merge(extractdata, activitylabels, by.x = "activity_id", by.y = "activity_id")
+extractdata = merge(activitylabels, extractdata, by.x = "activity_id", by.y = "activity_id")
+head(extractdata)[c(1:7)]
 with(extractdata, table(activity_id, activity_label))
+extractdata <- subset( extractdata, select = -c(activity_id) )
 
 
 #### Step 4. Appropriately labels the data set with descriptive variable names
-extractcolnames <- as.character(rawdatanames[extractcol,2])
-colnames(extractdata)[2:80] <- extractcolnames
+extractcolnames <- as.character(varnames[extractcol,2])
+colnames(extractdata)[3:68] <- extractcolnames
 head(extractdata)
 
+colnames(extractdata) <- sub("^([tf][A-Za-z]+-)(m)(ean)[(][)](-)?(.*)?","\\1M\\3Of\\5", colnames(extractdata))
+colnames(extractdata) <- sub("^([tf][A-Za-z]+-)(std)[(][)](-)?(.*)?","\\1StdDevOf\\4", colnames(extractdata))
+colnames(extractdata) <- sub("(Mean|StdDev)Of$","\\1", colnames(extractdata))
+colnames(extractdata)
 
 
 #### Step 5. From the data set in step 4, creates a second, independent tidy data set with the average of each variable for each activity and each subject.
-write.table( ,row.name=FALSE)
+library(reshape2)
+tidydata <- recast(extractdata, subject_id + activity_label~ variable, mean, id.var = c("activity_label", "subject_id"))
+colnames(tidydata) <- sub("(^[tf].+)","MeanOf-\\1", colnames(tidydata))
+write.table(x = tidydata, file = "tidydata", row.name=FALSE)
+
+
+########################################################################################
+# END OF FILE
+########################################################################################
