@@ -101,6 +101,12 @@ colnames(tidydata) <- sub("(^[tf].+)","MeanOf-\\1", colnames(tidydata))
 write.table(x = tidydata, file = "tidydata", row.name=FALSE)
 
 
+#### Helper file for CodeBook.md
+variables <- paste("- ",colnames(tidydata))
+write.table(x = variables, file = "variables", row.name=FALSE, quote = FALSE)
+
+
+
 ########################################################################################
 # END OF FILE
 ########################################################################################
